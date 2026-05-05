@@ -259,33 +259,8 @@ Each customer gets a **value tier** × **risk tier** placement, a **recommended 
 
 ---
 
-## Repository structure
-
-```
-.
-├── Online_Retail_II_Optimized.ipynb   # Full pipeline, 70 cells
-├── data/
-│   └── online_retail_II.xlsx          # UCI dataset
-├── outputs/
-│   └── customer_action_list.csv       # Deliverable: prioritized customers
-└── README.md
-```
-
-## How to run
-
-```bash
-pip install -r requirements.txt
-jupyter lab Online_Retail_II_Optimized.ipynb
-```
-
-Run cells top-to-bottom. Section dependencies are linear: each modeling section reads from `df_clean` and `customer_df` produced in Sections 1-3. The action layer (Section 9) reads from the segmentation, LTV, and churn outputs and is the last cell to run.
-
----
-
 ## Dataset citation
 
 Chen, D. (2019). Online Retail II. UCI Machine Learning Repository. https://archive.ics.uci.edu/dataset/502/online+retail+ii
 
 ---
-
-*Built by **TechNick Analytics** — predictive health and customer analytics consulting.*
