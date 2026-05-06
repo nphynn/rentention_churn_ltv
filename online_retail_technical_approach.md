@@ -1,22 +1,20 @@
-# Customer Analytics on Online Retail II
-### Retention × Churn × LTV — turning customer data into a prioritized action queue
-
-A production-shaped customer analytics project on the **Online Retail II** dataset (UCI — UK gift retailer, ~1M transactions, Dec 2009 → Dec 2011). The deliverable isn't a model; it's a **prioritized customer list** with a recommended action and expected ROI per customer. The models are how we get there.
+# Customer Analytics on Online Retail II Technical Approach
+### Retention × Churn × LTV 
 
 ---
 
-## TL;DR
+## Overview
 
 - **Business question:** A retail business has finite marketing budget. Where does the next pound go?
 - **Approach:** Build retention, churn, and LTV models in parallel, segment customers two ways (RFM rules + K-Means), then fuse value × risk into a single action grid.
-- **Modeling philosophy:** Three model families per target — **statistical for narrative and calibration**, **ML for production scoring**, **deep learning to show the sequence-aware upgrade path** the data will support once it scales.
-- **Output:** A `customer_action_list.csv` with predicted 60-day CLV, churn probability, RFM segment, K-Means cluster, recommended action, and expected save value per intervention.
+- **Modeling:** Three model families per target — **statistical for narrative and calibration**, **ML for production scoring**, **deep learning to show the sequence-aware upgrade path**.
+- **Output:** A `customer_action_list.csv` with predicted 60-day CLV, churn probability, RFM segment, K-Means cluster, recommended action and expected save value per intervention.
 
 ---
 
 ## Why retention, churn, and LTV have to be modeled *together*
 
-This is the core insight the project is built around. Each of the three answers a different question — and each, on its own, mis-allocates budget.
+This is the core insight the project is built around. Each of the three answers a different question and each, on its own mis-allocates budget.
 
 | Question | What it answers alone | What it misses alone |
 |---|---|---|
@@ -37,14 +35,11 @@ That 2×2 is the entire point of the project. Predictive models give scores; seg
 
 ## Why segmentation needs *both* RFM rules and K-Means
 
-A common mistake is picking one segmentation technique and shipping it. The notebook deliberately runs both because each compensates for the other's blind spot.
-
 | Method | Strength | Blind spot |
 |---|---|---|
 | **RFM quintile rules** | Fully reproducible; "Champions" means the same thing every quarter; marketing teams already speak this language | Quintile boundaries are arbitrary — a customer can flip segments because of a one-quintile shift that has no business meaning |
 | **K-Means on log-transformed RFM** | Lets the data find natural groupings; handles the non-linear shape of revenue distributions when fed log features | Cluster identities drift between training runs; less directly explainable to non-technical stakeholders |
 
-The two views agree on the obvious cases (Champions, Lost) and disagree at the boundaries — and that's exactly where you want the data-driven view to overrule the rules. Customers in this disagreement zone are flagged for closer human review. **Either method alone is a worse segmentation than running both and reconciling.**
 
 ---
 
@@ -58,30 +53,17 @@ Every target — retention, churn, LTV — is modeled three ways. This isn't mod
 | **Machine Learning** (Logistic Regression, LightGBM, XGBoost — all tuned) | The model that actually runs in production and scores customers daily | Best discrimination/regression accuracy on tabular RFM features. Tunable, fast to retrain, SHAP-explainable. **This is what gets deployed.** |
 | **Deep Learning** (GRU + Attention, Transformer, LSTM) | Sequence-aware modeling — most retail purchasing is sequential, not summary-stat-shaped | At RFM-only feature density, DL roughly **ties** ML on this dataset. Honest finding. The architecture is included because **once event-level features arrive (product categories, sessions, support contacts), this is the model that scales** — not LightGBM. The DL section is the upgrade path documented in code. |
 
-Stated plainly: **statistics is for what's interesting, ML is for what's in production, deep learning is for what comes next.** With ~5K customers and RFM-only inputs, deep learning doesn't materially beat tuned LightGBM here — and that's an important business finding, not a project failure. It tells the data team where the next investment should go: not bigger models, **richer features**.
-
 ---
 
-## Pipeline walkthrough — model choices, optimizations, and trade-offs
-
-Each modeling section below covers: **why this model**, **what was optimized vs an out-of-the-box implementation**, **the trade-off vs the obvious alternative**, and **what to read in the result**.
+## Pipeline walkthrough — model choices, optimizations and trade-offs
 
 ### Section 1 — Data quality audit
 
 Standard cleaning: drop missing Customer IDs (guest checkouts can't be modeled at customer level), drop cancellation invoices (`Invoice` starts with `C` — they double-count), drop non-positive quantity/price (modeling artifacts). Single source of truth `df_clean` feeds every downstream model.
 
-**Optimization at this step:** the cleaning rationale is documented inline so the cohort can be reproduced. In production, this becomes a versioned data contract — the audit cell is the spec.
+### Section 2 — Customer-level feature engineering
 
-### Section 2 — EDA through a business lens
-
-Three findings drive the rest of the project:
-- Revenue is geographically concentrated in the UK — international expansion is structurally untapped.
-- Customer revenue follows the classic Pareto distribution — top 20% generate the bulk. **This is why per-customer LTV modeling matters at all** — broadcast retention spend is mathematically wasteful when 80% of revenue lives in a small slice.
-- Strong holiday seasonality (Nov-Dec spike). Any random-split model will be optimistic — addressed in Section 8 with time-based holdout evaluation.
-
-### Section 3 — Customer-level feature engineering
-
-Aggregate transaction grain → one row per customer with R/F/M, tenure, AOV, item diversity, country. RFM features dominate repeat-purchase prediction in non-contractual retail (Fader & Hardie, 2005), so they anchor every downstream model.
+Aggregate transaction grain → one row per customer with R/F/M, tenure, AOV, item diversity, country. RFM features typically dominate repeat-purchase prediction in non-contractual retail so they will be used to anchor every downstream model.
 
 ### Section 4 — Segmentation (RFM + K-Means)
 
