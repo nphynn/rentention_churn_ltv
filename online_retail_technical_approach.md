@@ -1,8 +1,6 @@
 # Customer Analytics on Online Retail II Technical Approach
 ### Retention × Churn × LTV 
 
----
-
 ## Overview
 
 - **Business question:** A retail business has finite marketing budget. Where does the next dollar go?
