@@ -214,7 +214,7 @@ A retention email costs £0.20. An at-risk High-value customer is worth £25-200
 
 | Area | Current | Production upgrade |
 |---|---|---|
-| **Model selection for churn** | LightGBM | **Ship LogReg.** Smaller, faster, more accurate at this size. Re-test boosting only after features cross ~30 or rows cross ~50K. |
+| **Model selection for churn** | LightGBM | - |
 | **Features** | RFM aggregates, monthly granularity | Add product category embeddings, channel mix, session events, support contacts |
 | **Cadence** | One-shot snapshot | Daily batch churn scoring; monthly retraining; weekly CLV refresh |
 | **Threshold** | Static cost-aware (0.008) | Calibrated against historical campaign A/B data per segment |
