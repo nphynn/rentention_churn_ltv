@@ -5,9 +5,9 @@
 
 ## Overview
 
-- **Business question:** A retail business has finite marketing budget. Where does the next pound go?
+- **Business question:** A retail business has finite marketing budget. Where does the next dollar go?
 - **Approach:** Build retention, churn, and LTV models in parallel, segment customers two ways (RFM rules + K-Means), then fuse value × risk into a single action grid.
-- **Modeling:** Three model families per target — **statistical for narrative and calibration**, **ML for production scoring**, **deep learning to show the sequence-aware upgrade path**.
+- **Modeling:** Three model families per target: **statistical for narrative and calibration**, **ML for production scoring**, **deep learning to show the sequence-aware upgrade path**.
 - **Output:** A `customer_action_list.csv` with predicted 60-day CLV, churn probability, RFM segment, K-Means cluster, recommended action and expected save value per intervention.
 
 ---
@@ -25,11 +25,11 @@ This is the core insight the project is built around. Each of the three answers 
 The action a marketing team takes only makes sense when all three are on the table at once:
 
 - A **high-churn-risk × low-LTV** customer gets a single automated email (cheap, low expected value).
-- A **high-churn-risk × high-LTV** customer gets personal outreach from an account manager — saving them is worth £100s.
-- A **low-churn-risk × high-LTV** customer (a Champion) gets a thank-you, never a discount. A discount campaign aimed at them is pure margin loss.
+- A **high-churn-risk × high-LTV** customer gets personal outreach from an account manager 
+- A **low-churn-risk × high-LTV** customer (a Champion) gets a thank-you and offers for VIP programs. A discount campaign aimed at them is pure margin loss.
 - A **low-churn-risk × low-LTV** customer gets ignored. Acquisition replaces them more efficiently than retention does.
 
-That 2×2 is the entire point of the project. Predictive models give scores; segmentation gives names; **combining value (LTV) with risk (churn) on top of a named segment (RFM/cluster) is what turns scores into a campaign brief**. None of the three answers alone is a strategy.
+That 2×2 is the entire point of the project. Predictive models give scores, segmentation gives names, **combining value (LTV) with risk (churn) on top of a named segment (RFM/cluster) is what turns scores into a campaign brief**. None of the three answers alone is a strategy.
 
 ---
 
@@ -37,21 +37,20 @@ That 2×2 is the entire point of the project. Predictive models give scores; seg
 
 | Method | Strength | Blind spot |
 |---|---|---|
-| **RFM quintile rules** | Fully reproducible; "Champions" means the same thing every quarter; marketing teams already speak this language | Quintile boundaries are arbitrary — a customer can flip segments because of a one-quintile shift that has no business meaning |
-| **K-Means on log-transformed RFM** | Lets the data find natural groupings; handles the non-linear shape of revenue distributions when fed log features | Cluster identities drift between training runs; less directly explainable to non-technical stakeholders |
-
+| **RFM quintile rules** | Fully reproducible; "Champions" means the same thing every quarter | Quintile boundaries are arbitrary as a customer can flip segments because of a one-quintile shift |
+| **K-Means on log-transformed RFM** | Lets the data find natural groupings and handles the non-linear shape of revenue distributions when fed log features | Cluster identities drift between training runs |
 
 ---
 
 ## Modeling philosophy: three families, three jobs
 
-Every target — retention, churn, LTV — is modeled three ways. This isn't model proliferation; each family has a distinct role.
+Every target (retention, churn, LTV) is modeled three ways with each family having a distinct role
 
-| Family | What it's *for* | Why it's in this project |
+| Family | What it's *for* | Role here |
 |---|---|---|
-| **Statistical** (Cox PH, Weibull AFT, BG/NBD + Gamma-Gamma) | Interesting findings, calibrated probabilities, parametric forecasts, executive narrative | These models tell you **why** customers churn (hazard ratios, AFT time-multipliers, the Weibull shape parameter that exposes the "first 30 days" fragility). They generate the slide deck. |
-| **Machine Learning** (Logistic Regression, LightGBM, XGBoost — all tuned) | The model that actually runs in production and scores customers daily | Best discrimination/regression accuracy on tabular RFM features. Tunable, fast to retrain, SHAP-explainable. **This is what gets deployed.** |
-| **Deep Learning** (GRU + Attention, Transformer, LSTM) | Sequence-aware modeling — most retail purchasing is sequential, not summary-stat-shaped | At RFM-only feature density, DL roughly **ties** ML on this dataset. Honest finding. The architecture is included because **once event-level features arrive (product categories, sessions, support contacts), this is the model that scales** — not LightGBM. The DL section is the upgrade path documented in code. |
+| **Statistical** (Cox PH, Weibull AFT, BG/NBD + Gamma-Gamma) | Interesting findings, calibrated probabilities, parametric forecasts | Explains *why* customers churn (hazard ratios, AFT time-multipliers). Executive narrative. |
+| **Machine Learning** (LogReg, LightGBM, XGBoost) | Production scoring | Best discrimination/regression on tabular RFM. Tunable, fast to retrain, SHAP-explainable. **What gets deployed.** |
+| **Deep Learning** (GRU + Attention, Transformer, LSTM) | Sequence-aware modeling | At RFM-only feature density, parity with ML on this dataset (LSTM nudged XGBoost on LTV). **The architecture documented in code so it's ready when event-level features arrive.** |
 
 ---
 
@@ -69,18 +68,18 @@ Aggregate transaction grain → one row per customer with R/F/M, tenure, AOV, it
 
 **Optimizations:**
 - K-Means is fit on **log-transformed** frequency and revenue — raw values are heavy-tailed and break the equal-variance assumption clustering relies on.
-- `k` is chosen via combined **elbow + silhouette**, not a hard-coded value. The chosen `k` is capped at 5 for business actionability — too many clusters and marketing can't write that many campaign briefs.
+- `k` is chosen via combined **elbow + silhouette**, not a hard-coded value. The chosen `k` is capped at 5 for business actionability as too many clusters and marketing can't write that many campaign briefs.
 - PCA visualization in 2D shows whether clusters are genuinely separated or whether the structure is more continuous than discrete.
 
 **Trade-offs vs alternatives:**
-- *Why not Gaussian Mixture Models?* GMM gives soft assignments and works on heteroscedastic clusters, but the segments are harder to communicate — "47% Champion, 32% Loyal" doesn't fit on a campaign brief. K-Means' hard assignment is the business asset.
-- *Why not hierarchical clustering?* Doesn't scale well past ~10K customers; with ~5K here it would work, but K-Means' centroids are easier to interpret as "average customer" archetypes.
+- *Why not Gaussian Mixture Models?* GMM gives soft assignments and works on heteroscedastic clusters but the segments are harder to communicate as "47% Champion, 32% Loyal" doesn't fit on a campaign brief. K-Means'. 
+- *Why not hierarchical clustering?* K-Means' centroids are easier to interpret as "average customer" archetypes.
 
 ### Section 5 — Retention models (will they come back in the next 60 days?)
 
 #### 5.1 Statistical — Kaplan-Meier + Cox Proportional Hazards
 
-**Why this model:** KM is non-parametric — it estimates the survival curve `S(t) = P(active at time t)` with no distributional assumption. Cox PH layers covariates on top to quantify which features extend or shorten customer lifespan. Together they tell you **how long customers stay and what makes them stay**, which is the executive-summary question.
+KM is non-parametricand it estimates the survival curve `S(t) = P(active at time t)` with no distributional assumption. Cox PH layers covariates on top to quantify which features extend or shorten customer lifespan. Together they tell you **how long customers stay and what makes them stay**, which is an executive-summary question.
 
 **Optimizations:** Log-transform of `frequency` and `aov` before fitting (heavy-tailed → leverage points distort coefficients); UK indicator collapsed from country to manage degrees of freedom.
 
@@ -88,79 +87,74 @@ Aggregate transaction grain → one row per customer with R/F/M, tenure, AOV, it
 - *Cox vs parametric (Weibull) regression for retention specifically:* Cox doesn't extrapolate beyond observed durations. Fine for the next 60 days, wrong for "what fraction of this cohort is still active in 2 years?" — that question goes to AFT in Section 6.
 - *Cox vs random survival forest:* RSF handles non-linearities natively but loses the hazard ratio interpretation that makes Cox the right tool for executive reporting.
 
-#### 5.2 ML — Logistic Regression (tuned)
+#### 5.2 ML — Logistic Regression
 
-**Why this model:** Right baseline for binary retention. Fast, interpretable (coefficients → odds ratios), well-calibrated probabilities with proper feature scaling. The right starting point — anything more complex has to beat it before it earns its place in production.
+Right baseline for binary retention. Fast, interpretable (coefficients → odds ratios), well-calibrated probabilities with proper feature scaling. The right starting point and anything more complex has to beat it before it earns its place in production.
 
-**Optimizations vs an out-of-the-box implementation:**
-- **Time-aware split**: features computed on data ending `T-60`, label is activity in the last 60 days. Random splits leak — features and labels overlap in time. This is the single most common mistake in retention modeling and the change that most affects honest reported AUC.
+**Optimizations:**
+- **Time-aware split**: features computed on data ending `T-60`, label is activity in the last 60 days. Random splits leak: features and labels overlap in time.
 - **Regularization strength tuned via cross-validation** (`LogisticRegressionCV`) instead of accepting the default `C=1.0`.
-- **Threshold optimization on cost asymmetry**: default 0.5 implicitly assumes false positives and false negatives cost the same. They don't — an email is £0.20 and an at-risk customer is worth £25+. The optimal threshold is `email_cost / customer_value` ≈ 0.008, meaning *email anyone with even modest churn risk*. The default 0.5 leaves 90%+ of expected value on the table.
+- **Threshold optimization on cost asymmetry**: default 0.5 implicitly assumes false positives and false negatives cost the same. They don't, an email is £0.20 and an at-risk customer is worth £25+. The optimal threshold is `email_cost / customer_value` ≈ 0.008, meaning *email anyone with even modest churn risk*. The default 0.5 leaves 90%+ of expected value on the table.
 
 **Trade-offs vs alternatives:**
-- *Why not jump straight to LightGBM here?* LogReg is the calibration baseline; its AUC tells you whether the problem is linear-separable on RFM. If LightGBM only beats it by 0.01, the extra complexity is fragile.
+- *Why not jump straight to LightGBM here?* LogReg is the calibration baseline and its AUC tells you whether the problem is linear-separable on RFM. LightGBM only beats it by 0.01 on this dataset, therefore the extra complexity is fragile.
 
 #### 5.3 DL — GRU + Attention
 
-**Why this model:** RFM aggregates collapse a year of customer history into three numbers. A GRU reads the **trajectory** — which months were heavy, which were light, whether activity is accelerating or decelerating. Attention pooling weights informative months and is **inspectable**, which is the DL analog of feature importance.
+RFM aggregates collapse a year of customer history into three numbers. A GRU reads which months were heavy, which were light, whether activity is accelerating or decelerating. Attention pooling weights informative months which is the DL analog of feature importance.
 
 **Optimizations:** Train/val/test split (early stopping needs the val set), early stopping on validation AUC, `ReduceLROnPlateau` learning-rate scheduler, gradient clipping for training stability, best-checkpoint restoration (returning the best val-AUC weights, not the last-epoch weights).
 
-**Trade-offs / honest finding:** On RFM-only monthly sequences, the GRU typically only **matches** tuned logistic regression on this dataset. The architecture's value scales with sequence richness. Add product category embeddings, day-of-week features, session-level events — that's when sequence modeling materially beats tabular ML. **This section exists to document the architecture and discipline so it can ingest those features when they arrive, not to claim AUC superiority on the current data.**
+**Trade-offs / honest finding:** On RFM-only monthly sequences, the GRU typically **matches** logistic regression on this dataset. Adding product category embeddings, day-of-week features and session-level events would be better feautes which sequence modeling materially beats tabular ML. **This section exists to document the architecture and discipline so it can ingest those features if a suitable dataset is avaliable and not to claim AUC superiority on the current data.**
 
 ### Section 6 — Churn models (who's quietly leaving?)
 
-Retention asks *who comes back*; churn asks *who's at risk right now* so retention budget goes to the highest-impact saves. Different framing, different action.
-
 #### 6.1 Statistical — Weibull AFT
 
-**Why this model:** Cox gave us hazard *ratios* (relative risk). Weibull AFT gives hazard *magnitudes* — actual time-to-churn estimates per customer. Coefficients are multiplicative on time: `exp(coef) = 1.5` means the covariate extends survival by 50%. Output ships directly to the marketing team as "this customer is on track to churn in ~X days."
+Weibull AFT gives hazard *magnitudes* to measure the actual time-to-churn estimates per customer. Coefficients are multiplicative on time: `exp(coef) = 1.5` means the covariate extends survival by 50%. Output ships directly to the marketing team as "this customer is on track to churn in ~X days."
 
-The Weibull `rho_` shape parameter is the diagnostic gem — for retail it's typically <1, meaning the hazard is highest *early* in tenure. This is the empirical fingerprint of the "first 30 days problem" — the largest retention lift comes from onboarding, not win-back.
+The Weibull `rho_` shape parameter is the diagnostic gem for retail it's typically <1, meaning the hazard is highest *early* in tenure. This is the empirical fingerprint of the "first 30 days problem" as the largest retention lift comes from onboarding, not win-back.
 
 **Trade-offs vs alternatives:**
 - *Weibull vs Log-Normal AFT:* both are parametric. Weibull is the right pick when hazard is monotonic (which it is here — risk decreases with tenure); Log-Normal handles bathtub curves where mid-life is safest.
 - *AFT vs deep survival models (DeepSurv):* DeepSurv handles non-linear effects but loses the closed-form time-to-event estimate that makes AFT directly actionable.
 
-#### 6.2 ML — LightGBM + SHAP (tuned)
+#### 6.2 ML — LightGBM + SHAP
 
-**Why this model:** Production-grade upgrade over logistic regression. Gradient-boosted decision trees handle non-linearity and feature interactions natively (`high recency AND low frequency` is a stronger signal than either alone — LogReg misses this without explicit interaction features). SHAP makes the model explainable per-customer, which is required for marketing teams to trust and act on individual scores.
+Gradient-boosted decision trees handle non-linearity and feature interactions natively (`high recency AND low frequency` is a stronger signal than either alone. SHAP makes the model explainable per-customer which is required for marketing teams to trust and act on individual scores.
 
 **Optimizations vs an out-of-the-box implementation:**
-- **`RandomizedSearchCV` hyperparameter tuning** (n_estimators, learning_rate, num_leaves, subsample, colsample_bytree, min_child_samples) — accepting LightGBM defaults typically leaves 0.02-0.04 AUC on the table.
+- **`RandomizedSearchCV` hyperparameter tuning** (n_estimators, learning_rate, num_leaves, subsample, colsample_bytree, min_child_samples): accepting LightGBM defaults typically leaves 0.02-0.04 AUC on the table.
 - **Stratified CV during search** — class imbalance (most active customers don't churn) makes plain k-fold unstable on AUC.
-- **Engineered interaction features** (recency × frequency ratio, revenue-per-day) — gradient boosting *can* find these on its own, but giving them explicitly tightens the model and makes SHAP attributions cleaner.
+- **Engineered interaction features** (recency × frequency ratio, revenue-per-day): gradient boosting *can* find these on its own but giving them explicitly tightens the model and makes SHAP attributions cleaner.
 
 **Trade-offs vs alternatives:**
-- *LightGBM vs XGBoost for churn:* roughly comparable AUC; LightGBM is faster to train at this scale (leaf-wise growth, histogram binning). Either is a defensible production choice.
-- *LightGBM vs CatBoost:* CatBoost has cleaner native categorical handling. With one categorical feature (country, encoded as `is_uk`), it's not worth the dependency change.
-- *Tree-based vs Neural net:* tree models are more sample-efficient on tabular data at this size. Below ~100K rows, gradient boosting almost always wins on tabular features. This is a finding of the project, not an opinion.
+- *LightGBM vs XGBoost for churn:* LightGBM is faster to train at this scale (leaf-wise growth, histogram binning). 
+- *LightGBM vs CatBoost:* With one categorical feature (country, encoded as `is_uk`), it's not worth the dependency change.
+- *Tree-based vs Neural net:* tree models are more sample-efficient on tabular data at this size.
 
 #### 6.3 DL — Transformer Encoder
 
-**Why this model:** Self-attention weights events differently per customer — RFM cannot do this. The architecture's natural use case is journey modeling once the data carries event-level richness.
+Self-attention weights events differently per customer which RFM cannot do. The architecture's natural use case is journey modeling once the data carries event-level richness.
 
 **Optimizations:** Train/val/test split (was train/test only in earlier iterations), early stopping on val AUC + best-checkpoint restoration, `ReduceLROnPlateau`, gradient clipping.
 
-**Honest finding:** On RFM-only monthly sequences, transformer is at parity ±0.02 AUC with LightGBM. **Architecture is the foundation; features are what make it dominate.** For this dataset and feature set, LightGBM is the right production model. The transformer is documented so the upgrade is one feature-engineering sprint away — not a re-architecting project.
 
 ### Section 7 — LTV models (how much will they spend?)
 
-The most directly business-actionable target — LTV sets acquisition cost ceilings, retention budgets, and VIP tier thresholds.
-
 #### 7.1 Statistical — BG/NBD + Gamma-Gamma
 
-**Why this model:** Canonical probabilistic LTV for non-contractual settings. **BG/NBD** predicts the *number* of future transactions (Fader, Hardie & Lee, 2005); **Gamma-Gamma** predicts the *monetary value* per transaction. Their product is expected revenue. The output is calibrated — predicted totals match actual totals — which makes it the right input for budget allocation.
+Canonical probabilistic LTV for non-contractual settings. **BG/NBD** predicts the *number* of future transactions; **Gamma-Gamma** predicts the *monetary value* per transaction. Their product is expected revenue.
 
 **Optimizations:** Validates the Gamma-Gamma `corr(frequency, monetary_value) < 0.1` assumption explicitly before fitting. If it fails, predicted CLV is biased and the regression-based fallback (Section 7.2) is the right choice instead.
 
 **Trade-offs vs alternatives:**
-- *BG/NBD vs Pareto/NBD:* BG/NBD is computationally cheaper and assumes customers churn after a transaction (more realistic for retail than Pareto/NBD's continuous-time churn). Empirically equivalent for forecast accuracy.
-- *Probabilistic vs ML LTV:* probabilistic models are calibrated but ignore non-RFM features (country, item diversity, seasonality). XGBoost picks those up — Section 7.2 is the complement, not the replacement.
+- *BG/NBD vs Pareto/NBD:* BG/NBD is computationally cheaper and assumes customers churn after a transaction (more realistic for retail than Pareto/NBD's continuous-time churn). 
+- *Probabilistic vs ML LTV:* probabilistic models are calibrated but ignore non-RFM features (country, item diversity, seasonality). XGBoost picks those up with Section 7.2 as the complement not the replacement.
 
-#### 7.2 ML — XGBoost Regression (tuned)
+#### 7.2 ML — XGBoost Regression
 
-**Why this model:** BG/NBD encodes a specific stochastic process. XGBoost makes no such assumption — it learns `(features) → future_revenue` from data, including features BG/NBD ignores. Typically wins on **ranking** (Spearman) by 0.05-0.10 over BG/NBD; BG/NBD wins on **calibration** (predicted totals = actual totals).
+BG/NBD encodes a specific stochastic process. XGBoost makes no such assumption as it learns `(features) → future_revenue` from data including features BG/NBD ignores. Typically wins on **ranking** (Spearman) by 0.05-0.10 over BG/NBD; BG/NBD wins on **calibration** (predicted totals = actual totals).
 
 **Optimizations:**
 - **`RandomizedSearchCV`** over n_estimators, max_depth, learning_rate, subsample, colsample_bytree.
@@ -168,36 +162,33 @@ The most directly business-actionable target — LTV sets acquisition cost ceili
 - **Spearman as primary metric** — for budget allocation, ranking matters more than absolute prediction. R² on heavy-tailed targets is structurally low and misleading.
 
 **Trade-offs vs alternatives:**
-- *XGBoost vs Quantile regression:* quantile regression gives prediction intervals, useful for risk-adjusted budgets. Worth adding in production for top-decile customers.
-- *XGBoost vs BG/NBD:* use both. Take XGBoost's ranking and BG/NBD's calibration.
+- *XGBoost vs Quantile regression:* quantile regression gives prediction intervals, useful for risk-adjusted budgets which is not the question here.
 
-#### 7.3 DL — LSTM with proper training discipline
+#### 7.3 DL — LSTM with proper training discipline:
 
-**Why this model:** Same intuition as the churn transformer. LSTMs are competitive with transformers on short sequences and faster to train.
+Same intuition as the churn transformer. LSTMs are competitive with transformers on short sequences and faster to train.
 
 **Optimizations:** Train/val/test split, early stopping, LR scheduler, gradient clipping.
 
-**Honest finding:** Within 0.02 Spearman of XGBoost on RFM-only sequences. Gradient boosting is more sample-efficient on tabular at this size. The LSTM's value emerges with weekly granularity, product category sequences, channel events.
-
 ### Section 8 — Robust evaluation: CV + time-based holdout
 
-**Why this section:** Every prior section used a single random 75/25 customer split. That's vulnerable to two failure modes:
+Every prior section used a single random 75/25 customer split. That's vulnerable to two failure modes:
 
-1. **Lucky/unlucky split variance** — a single split's AUC can swing ±0.02 on this dataset.
-2. **Temporal optimism** — random splits leak across time when feature distributions drift, inflating reported performance vs production.
+1. **Lucky/unlucky split variance**: a single split's AUC can swing ±0.02 on this dataset.
+2. **Temporal optimism**: random splits leak across time when feature distributions drift, inflating reported performance vs production.
 
 **The two evaluations:**
-- **Stratified 5-fold CV on customers** — gives mean AUC ± std (variance estimate).
-- **Time-based holdout** — train on data ending `T-120`, test on the latest 60 days. Closest analog to deployed behavior.
+- **Stratified 5-fold CV on customers**: gives mean AUC ± std (variance estimate).
+- **Time-based holdout**: train on data ending `T-120`, test on the latest 60 days. Closest analog to deployed behavior.
 
-**The deployment-honesty check** is the **CV − Holdout gap**. <0.02 → CV is honest about deployment. >0.05 → CV is overstating, usually due to temporal drift. Reporting both is the discipline.
+**The deployment-honesty check** is the **CV − Holdout gap**. <0.02 → CV is honest about deployment. >0.05 → CV is overstating, usually due to temporal drift. Reporting both is necessary.
 
 ### Section 9 — Business action layer (the actual deliverable)
 
 Combines three signals per customer into a `customer_action_list.csv`:
 
 1. **Predicted 60-day CLV** (BG/NBD + Gamma-Gamma) — value
-2. **Churn probability** (tuned LightGBM) — risk
+2. **Churn probability** (LightGBM) — risk
 3. **RFM segment + K-Means cluster** — identity
 
 Each customer gets a **value tier** × **risk tier** placement, a **recommended action**, and an **expected save value** (`P(churn) × CLV × LIFT − email_cost`). The marketing team works the grid top-down, top-row first, until the marginal expected save falls below cost-per-touch.
@@ -209,26 +200,12 @@ Each customer gets a **value tier** × **risk tier** placement, a **recommended 
 ## Headline analysis of results
 
 - **Recency dominates retention prediction across every model family** — appears as the strongest negative coefficient in LogReg, the largest hazard-reducing covariate in Cox, the top SHAP feature in LightGBM, and the right-tail bias in GRU attention weights. Convergent evidence across statistical, ML, and DL views. *Marketing implication: recency-based triggers are the single highest-ROI retention mechanism.*
-- **Tuned LightGBM is the right production model for churn at this data size** — 0.02-0.05 AUC over LogReg through interaction-based splits, fast retraining, SHAP-explainable per-customer.
+- **LightGBM is the right production model for churn at this data size** — 0.02-0.05 AUC over LogReg through interaction-based splits, fast retraining, SHAP-explainable per-customer.
 - **Deep learning is at parity with ML on this dataset and feature set.** This is a finding, not a failure — it tells the data team that the next investment is in **richer features** (product categories, session events, channels), not bigger models.
 - **The Pareto effect is severe**: the top decile of predicted CLV captures 50-70% of expected forward revenue. Broadcast retention is mathematically wasteful — value-tier-aware spending is 5-10× more efficient.
 - **Threshold optimization is the highest-leverage tuning step in the entire pipeline.** Moving from default 0.5 to cost-aware 0.008 changes nothing about the model and changes everything about the campaign economics. This is the cheapest, biggest win in the project.
 - **CV vs time-based holdout gap quantifies deployment-honesty.** Reporting only CV AUC is the most common reason production model performance disappoints — random splits leak across time when seasonality drives features.
-
----
-
-## Production recommendations (what changes at scale)
-
-| Area | Current implementation | Production recommendation |
-|---|---|---|
-| **Features** | RFM aggregates from monthly granularity | Add product category embeddings, channel mix, session events, support contact history — this is what makes DL beat tree models |
-| **Cadence** | One-shot snapshot | Daily batch scoring of churn probability + monthly retraining; CLV predictions refreshed weekly |
-| **Threshold** | Static `email_cost / customer_value` | Calibrated against historical campaign A/B test data per segment — Champions are likely less responsive to discounts than At Risk |
-| **Lift assumption** | 20% generic | Stratified by segment, re-estimated each campaign cycle |
-| **Action grid** | Static 3×3 value × risk | Add **time-to-churn from Weibull AFT** as a third axis to prioritize *when* to intervene within High-risk |
-| **Model governance** | Single CV + holdout | Backtest at multiple historical cutoffs; monitor drift on top-5 SHAP features; alert on AUC degradation > 0.03 |
-| **Explainability for marketing** | Notebook-level SHAP plots | Per-customer "why" string in the action list (top-3 SHAP contributors as plain English) |
-
+  
 ---
 
 ## Tech stack
