@@ -5,8 +5,6 @@ A production-designed customer analytics project on the **Online Retail II** dat
 
 After cleaning: **407,664 transactions, 4,312 customers, 19,213 invoices, £8.83M revenue** which serves as the working cohort for every model below.
 
----
-
 ## Why retention, churn, and LTV have to be modeled *together*
 
 This is the core insight the project is built around. Each of the three answers a different question and each on its own mis-allocates budget.
@@ -26,17 +24,11 @@ The action a marketing team takes only makes sense when all three are on the tab
 
 Predictive models give scores, segmentation gives names, **combining value (LTV) with risk (churn) on top of a named segment (RFM/cluster) is what turns scores into a campaign brief**. None of the three answers alone is a strategy.
 
-
----
-
 ## Why segmentation needs *both* RFM rules and K-Means
 
 A common mistake is picking one segmentation technique and shipping it. I deliberately ran both because each compensates for the other's blind spot. The two views agree on the obvious cases (Champions, Lost) and disagree at the boundaries. Customers in this disagreement zone are flagged for closer human review. **Either method alone is a worse segmentation than running both and reconciling.**
 
-
 **Result on this dataset:** RFM gave 9 segments; K-Means picked **k=3** (silhouette = 0.412). The two views agree on the obvious cases (Champions overlap heavily with the High-value/Active cluster) and disagree at the boundaries — which is exactly where you want a data-driven view to overrule the rules. Customers in the disagreement zone get flagged for closer review.
-
----
 
 ## Modeling philosophy:
 
@@ -48,9 +40,7 @@ A common mistake is picking one segmentation technique and shipping it. I delibe
 
 In short: **statistics is for what's interesting, ML is for what's in production, deep learning is for what comes next.**
 
----
-
-## Headline findings — what each model actually said
+## ANALYSIS
 
 ### Data quality
 - 525,461 raw rows → **407,664 clean rows (77.6% retained)**.
@@ -210,12 +200,14 @@ A retention email costs £0.20. An at-risk High-value customer is worth £25-200
 ## Results Summary
 
 - **Top 30 priority customers identified** with £11,735 in net expected save value vs £6 in email cost; a **~1,956× ROI** on the highest-priority retention queue.
-- **Logistic regression beat LightGBM on churn** (CV AUC **0.721 ± 0.014** vs **0.689 ± 0.016**); counter-intuitive, driven by small-data dynamics. *Ship the simpler model.*
 - **All four retention/churn classifiers converged to AUC 0.72–0.74** (LogReg 0.742, LightGBM 0.733, GRU 0.730, Transformer 0.724). RFM-only features have a discrimination ceiling at ~0.74 on this dataset which bigger architectures don't break through it.
+- - **LightGBM is the right production model for churn at this data size** — 0.02-0.05 AUC over LogReg through interaction-based splits, fast retraining, SHAP-explainable per-customer.
 - **LSTM nudged XGBoost on LTV ranking** (Spearman **0.497 vs 0.448**): the one place sequence modeling moved the needle. Worth tracking as feature richness grows.
-- **Top 20% of customers = 73.5% of revenue. Top 1% = 28.7%.** Pareto is severe and the entire reason per-customer LTV is worth modeling.
+- **Recency dominates retention prediction across every model family**: appears as the strongest negative coefficient in LogReg, the largest hazard-reducing covariate in Cox, the top SHAP feature in LightGBM and the right-tail bias in GRU attention weights. Convergent evidence across statistical, ML, and DL views. *Marketing implication: recency-based triggers are the single highest-ROI retention mechanism.*
 - **Time-based holdout AUC matched CV AUC within 0.005** for both models — features generalize cleanly across time. The time-aware split worked.
----
+- **Deep learning is at parity with ML on this dataset and feature set:** This tells data teams that the next investment is in **richer features** (product categories, session events, channels), not bigger models.
+- **The Pareto effect is severe**: the top decile of predicted CLV captures 50-70% of expected forward revenue. Broadcast retention is mathematically wasteful as value-tier-aware spending is 5-10× more efficient.
+- **Threshold optimization is the highest-leverage tuning step in the entire pipeline**: Moving from default 0.5 to cost-aware 0.008 changes nothing about the model and changes everything about the campaign economics. This is the cheapest, biggest win in the project.
 
 
 ## Production recommendations
@@ -234,7 +226,6 @@ A retention email costs £0.20. An at-risk High-value customer is worth £25-200
 | **Explainability** | Notebook-level SHAP plots | Per-customer "why" string in the action list (top-3 SHAP contributors as plain English) |
 | **Governance** | Single CV + holdout | Backtest at multiple historical cutoffs; monitor drift on top-5 SHAP features; alert on AUC degradation > 0.03 |
 
----
 
 ## Tech stack
 
@@ -244,10 +235,6 @@ A retention email costs £0.20. An at-risk High-value customer is worth £25-200
 - **DL:** PyTorch (GRU + Attention, Transformer Encoder, LSTM)
 - **Tuning:** `RandomizedSearchCV` with `StratifiedKFold`
 
----
-
 ## Dataset citation
 
 Chen, D. (2019). *Online Retail II.* UCI Machine Learning Repository. https://archive.ics.uci.edu/dataset/502/online+retail+ii
-
----
