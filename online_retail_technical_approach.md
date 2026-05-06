@@ -8,8 +8,6 @@
 - **Modeling:** Three model families per target: **statistical for narrative and calibration**, **ML for production scoring**, **deep learning to show the sequence-aware upgrade path**.
 - **Output:** A `customer_action_list.csv` with predicted 60-day CLV, churn probability, RFM segment, K-Means cluster, recommended action and expected save value per intervention.
 
----
-
 ## Why retention, churn, and LTV have to be modeled *together*
 
 This is the core insight the project is built around. Each of the three answers a different question and each, on its own mis-allocates budget.
@@ -29,16 +27,12 @@ The action a marketing team takes only makes sense when all three are on the tab
 
 That 2×2 is the entire point of the project. Predictive models give scores, segmentation gives names, **combining value (LTV) with risk (churn) on top of a named segment (RFM/cluster) is what turns scores into a campaign brief**. None of the three answers alone is a strategy.
 
----
-
 ## Why segmentation needs *both* RFM rules and K-Means
 
 | Method | Strength | Blind spot |
 |---|---|---|
 | **RFM quintile rules** | Fully reproducible; "Champions" means the same thing every quarter | Quintile boundaries are arbitrary as a customer can flip segments because of a one-quintile shift |
 | **K-Means on log-transformed RFM** | Lets the data find natural groupings and handles the non-linear shape of revenue distributions when fed log features | Cluster identities drift between training runs |
-
----
 
 ## Modeling philosophy: three families, three jobs
 
@@ -49,8 +43,6 @@ Every target (retention, churn, LTV) is modeled three ways with each family havi
 | **Statistical** (Cox PH, Weibull AFT, BG/NBD + Gamma-Gamma) | Interesting findings, calibrated probabilities, parametric forecasts | Explains *why* customers churn (hazard ratios, AFT time-multipliers). Executive narrative. |
 | **Machine Learning** (LogReg, LightGBM, XGBoost) | Production scoring | Best discrimination/regression on tabular RFM. Tunable, fast to retrain, SHAP-explainable. **What gets deployed.** |
 | **Deep Learning** (GRU + Attention, Transformer, LSTM) | Sequence-aware modeling | At RFM-only feature density, parity with ML on this dataset (LSTM nudged XGBoost on LTV). **The architecture documented in code so it's ready when event-level features arrive.** |
-
----
 
 ## Pipeline walkthrough — model choices, optimizations and trade-offs
 
