@@ -197,5 +197,3 @@ Each customer gets a **value tier** × **risk tier** placement, a **recommended 
 ## Dataset citation
 
 Chen, D. (2019). Online Retail II. UCI Machine Learning Repository. https://archive.ics.uci.edu/dataset/502/online+retail+ii
-
----
