@@ -184,19 +184,7 @@ Combines three signals per customer into a `customer_action_list.csv`:
 Each customer gets a **value tier** × **risk tier** placement, a **recommended action**, and an **expected save value** (`P(churn) × CLV × LIFT − email_cost`). The marketing team works the grid top-down, top-row first, until the marginal expected save falls below cost-per-touch.
 
 **The Top 30 priority list** = High-value × High-risk customers, sorted by expected save value. This is the immediate retention queue.
-
----
-
-## Headline analysis of results
-
-- **Recency dominates retention prediction across every model family** — appears as the strongest negative coefficient in LogReg, the largest hazard-reducing covariate in Cox, the top SHAP feature in LightGBM, and the right-tail bias in GRU attention weights. Convergent evidence across statistical, ML, and DL views. *Marketing implication: recency-based triggers are the single highest-ROI retention mechanism.*
-- **LightGBM is the right production model for churn at this data size** — 0.02-0.05 AUC over LogReg through interaction-based splits, fast retraining, SHAP-explainable per-customer.
-- **Deep learning is at parity with ML on this dataset and feature set.** This is a finding, not a failure — it tells the data team that the next investment is in **richer features** (product categories, session events, channels), not bigger models.
-- **The Pareto effect is severe**: the top decile of predicted CLV captures 50-70% of expected forward revenue. Broadcast retention is mathematically wasteful — value-tier-aware spending is 5-10× more efficient.
-- **Threshold optimization is the highest-leverage tuning step in the entire pipeline.** Moving from default 0.5 to cost-aware 0.008 changes nothing about the model and changes everything about the campaign economics. This is the cheapest, biggest win in the project.
-- **CV vs time-based holdout gap quantifies deployment-honesty.** Reporting only CV AUC is the most common reason production model performance disappoints — random splits leak across time when seasonality drives features.
   
----
 
 ## Tech stack
 
@@ -205,8 +193,6 @@ Each customer gets a **value tier** × **risk tier** placement, a **recommended 
 - **ML:** scikit-learn (LogReg, K-Means, PCA, CV), `lightgbm`, `xgboost`, `shap`
 - **DL:** PyTorch (GRU + Attention, Transformer Encoder, LSTM)
 - **Tuning:** `RandomizedSearchCV` with `StratifiedKFold`
-
----
 
 ## Dataset citation
 
