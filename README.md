@@ -28,29 +28,27 @@ Each answers a different question, and each — alone — mis-allocates budget.
 | **Churn** — who's quietly leaving? | Risk ranking of active customers | Says nothing about whether the customer is worth saving |
 | **LTV** — who's worth investing in? | Future revenue per customer | Says nothing about whether they're at risk *right now* |
 
-The action only makes sense when all three sit on the table at once:
+The action a marketing team takes only makes sense when all three are on the table at once:
 
-- **High churn-risk × high LTV** → personal outreach from an account manager (worth £100s).
-- **High churn-risk × low LTV** → single automated email (cheap, low EV).
-- **Low churn-risk × high LTV** (Champions) → thank-you, never a discount. *A discount campaign aimed at Champions is pure margin loss.*
-- **Low churn-risk × low LTV** → ignore. Acquisition replaces them more efficiently than retention does.
+- A **high-churn-risk × low-LTV** customer gets a single automated email (cheap, low expected value).
+- A **high-churn-risk × high-LTV** customer gets personal outreach from an account manager — saving them is worth £100s.
+- A **low-churn-risk × high-LTV** customer (a Champion) gets a thank-you, never a discount. A discount campaign aimed at them is pure margin loss.
+- A **low-churn-risk × low-LTV** customer gets ignored. Acquisition replaces them more efficiently than retention does.
 
-Predictive models give scores; segmentation gives names. **Combining value (LTV) with risk (churn) on top of a named segment (RFM/cluster) is what turns scores into a campaign brief.** No single output gets you there.
+That 2×2 is the entire point of the project. Predictive models give scores; segmentation gives names; **combining value (LTV) with risk (churn) on top of a named segment (RFM/cluster) is what turns scores into a campaign brief**. None of the three answers alone is a strategy.
 
 ---
 
 ## Why segmentation needs *both* RFM rules and K-Means
 
-| Method | Strength | Blind spot |
-|---|---|---|
-| **RFM quintile rules** | Reproducible across quarters; "Champions" means the same thing every time; marketing teams already speak this language | Quintile boundaries are arbitrary — a customer can flip segments on a one-quintile shift with no business meaning |
-| **K-Means on log RFM** | Lets data find natural groupings; handles the heavy-tailed shape of revenue when fed log features | Cluster identities drift between training runs; less directly explainable to non-technical stakeholders |
+A common mistake is picking one segmentation technique and shipping it. The notebook deliberately runs both because each compensates for the other's blind spot. The two views agree on the obvious cases (Champions, Lost) and disagree at the boundaries — and that's exactly where you want the data-driven view to overrule the rules. Customers in this disagreement zone are flagged for closer human review. **Either method alone is a worse segmentation than running both and reconciling.**
+
 
 **Result on this dataset:** RFM gave 9 segments; K-Means picked **k=3** (silhouette = 0.412). The two views agree on the obvious cases (Champions overlap heavily with the High-value/Active cluster) and disagree at the boundaries — which is exactly where you want a data-driven view to overrule the rules. Customers in the disagreement zone get flagged for closer review.
 
 ---
 
-## Modeling philosophy: three families, three jobs
+## Modeling philosophy:
 
 | Family | What it's *for* | Role here |
 |---|---|---|
